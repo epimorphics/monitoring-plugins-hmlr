@@ -1,0 +1,57 @@
+on:
+  push:
+    # Sequence of patterns matched against refs/tags
+    tags:
+      - 'v*' # Push events to matching v*, i.e. v1.0, v20.15.10
+
+name: Create Release
+
+jobs:
+  build:
+    name: Create Release
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+      - name: Set environment
+        run: |
+          echo "VERSION=${GITHUB_REF#refs/tags/}" >> $GITHUB_ENV
+          echo "NAME=${GITHUB_REPOSITORY#epimorphics/}" >> $GITHUB_ENV
+      - name: Build assets
+        run: make NAME=${{ env.NAME }} VERSION=${{ env.VERSION }} clean assets
+      - name: Create release
+        id: create_release
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: ${{ github.ref }}
+          release_name: Release ${{ github.ref }}
+          body: |
+            Automated release ${{ github.ref }}
+          draft: true
+          prerelease: false
+      - name: Upload release asset
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: ${{ env.NAME }}_${{ env.VERSION }}_linux_amd64.tar.gz 
+          asset_name: ${{ env.NAME }}_${{ env.VERSION }}_linux_amd64.tar.gz
+          asset_content_type: application/gzip
+      - name: Upload release asset checksum
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: ${{ env.NAME }}_${{ env.VERSION }}_sha512-checksums.txt
+          asset_name: ${{ env.NAME }}_${{ env.VERSION }}_sha512-checksums.txt
+          asset_content_type: text/plain
+      - name: Publish release
+        uses: StuYarrow/publish-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          id: ${{ steps.create_release.outputs.id }}
