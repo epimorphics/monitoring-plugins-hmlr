@@ -7,8 +7,8 @@ UNKNOWN=3
 
 PROG=$(basename $0)
 
-SCAN=60m
-GRACE=1800
+SCAN=${1:-60}m
+GRACE=$((60*${2:-30}))
 
 check () 
 {
